@@ -3,7 +3,7 @@ AI project 2025
 
 # Cyberbullying Detection with ELECTRA
 
-This project fine-tunes Google's ELECTRA model to detect cyberbullying types in tweets, using a dataset from [Kaggle](https://www.kaggle.com/datasets/andrewmvd/cyberbullying-classification).
+This project fine-tunes Google's ELECTRA model to detect cyberbullying types in tweets.
 
 ## Classes
 - Age
