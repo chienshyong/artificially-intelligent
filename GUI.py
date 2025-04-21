@@ -6,6 +6,7 @@ import pandas as pd
 from transformers import AutoTokenizer, AutoModelForSequenceClassification
 from textblob import TextBlob
 from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+from sklearn.preprocessing import LabelEncoder
 import emoji
 import re
 import numpy as np
@@ -15,12 +16,24 @@ import nltk
 from better_profanity import profanity
 profanity.load_censor_words()
 
+df = pd.read_csv('cyberbullying.csv')  # Replace with your actual path
+df = df[['tweet_text', 'cyberbullying_type']].dropna()
+
+# Encode text labels to numeric
+label_encoder = LabelEncoder()
+df['label'] = label_encoder.fit_transform(df['cyberbullying_type'])
+
+# Save the label mapping for interpretation later
+label_mapping = dict(zip(label_encoder.classes_, label_encoder.transform(label_encoder.classes_)))
+
 # === Load models ===
 tokenizer_deberta = AutoTokenizer.from_pretrained("deberta")
 model_deberta = AutoModelForSequenceClassification.from_pretrained("deberta")
-label_encoder = joblib.load("deberta/label_encoder.pkl")
-rf_model = joblib.load("rf_model.pkl")
-rf_label_encoder = joblib.load("rf_label_encoder.pkl")
+deberta_label_encoder = joblib.load("deberta/label_encoder.pkl")
+tokenizer_electra = AutoTokenizer.from_pretrained("electra")
+model_electra = AutoModelForSequenceClassification.from_pretrained("electra")
+rf_model = joblib.load("randomForest/rf_model.pkl")
+rf_label_encoder = joblib.load("randomForest/rf_label_encoder.pkl")
 
 nlp = spacy.load("en_core_web_sm")
 vader = SentimentIntensityAnalyzer()
@@ -97,7 +110,14 @@ def predict_text():
             inputs = tokenizer_deberta(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
             outputs = model_deberta(**inputs)
             pred = torch.argmax(outputs.logits, dim=1).item()
-            label = label_encoder.inverse_transform([pred])[0]
+            label = deberta_label_encoder.inverse_transform([pred])[0]
+            
+        if model_choice == "ELECTRA":
+            inputs = tokenizer_electra(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+            outputs = model_electra(**inputs)
+            logits = outputs.logits
+            label = torch.argmax(logits, dim=1).item()
+            label = {v: k for k, v in label_mapping.items()}[label]
 
         elif model_choice == "Random Forest":
             new_row = pd.Series(extract_features(text)).to_frame().T
@@ -125,7 +145,7 @@ input_box.pack(pady=5)
 
 tk.Label(root, text="Choose Model:", font=("Arial", 12)).pack(pady=5)
 model_var = tk.StringVar(value="DeBERTa")
-model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "Random Forest"], state="readonly")
+model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "Random Forest", "ELECTRA"], state="readonly")
 model_dropdown.pack()
 
 tk.Button(root, text="Predict", command=predict_text, bg="#4CAF50", fg="white", font=("Arial", 12)).pack(pady=10)
