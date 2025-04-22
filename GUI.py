@@ -34,6 +34,9 @@ deberta_label_encoder = joblib.load("deberta/label_encoder.pkl")
 tokenizer_electra = AutoTokenizer.from_pretrained("electra")
 model_electra = AutoModelForSequenceClassification.from_pretrained("electra")
 
+tokenizer_roberta = AutoTokenizer.from_pretrained("roberta")
+model_roberta = AutoModelForSequenceClassification.from_pretrained('roberta')
+
 rf_model = joblib.load("randomForest/rf_model.pkl")
 rf_label_encoder = joblib.load("randomForest/rf_label_encoder.pkl")
 
@@ -135,11 +138,17 @@ def predict_text():
             logits = outputs.logits
             label = torch.argmax(logits, dim=1).item()
             label = {v: k for k, v in label_mapping.items()}[label]
+            
+        elif model_choice == "RoBERTa":
+            inputs = tokenizer_roberta(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+            with torch.no_grad():
+                outputs = model_roberta(**inputs)
+                probs = torch.softmax(outputs.logits, dim=1).cpu().numpy()[0]
+            label = label_encoder.inverse_transform([np.argmax(probs)])[0]    
 
         elif model_choice == "Random Forest":
             new_row = pd.Series(extract_features(text)).to_frame().T
-            new_row.fillna(0, inplace=True)  # in case any features are missing
-            # Predict
+            new_row.fillna(0, inplace=True)
             label = rf_label_encoder.inverse_transform(rf_model.predict(new_row))[0]
             
         elif model_choice == "Stacking":
@@ -171,7 +180,7 @@ input_box.pack(pady=5)
 
 tk.Label(root, text="Choose Model:", font=("Arial", 12)).pack(pady=5)
 model_var = tk.StringVar(value="DeBERTa")
-model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "Random Forest", "ELECTRA", "Stacking"], state="readonly")
+model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "ELECTRA", "RoBERTa", "Random Forest", "Stacking"], state="readonly")
 model_dropdown.pack()
 
 tk.Button(root, text="Predict", command=predict_text, bg="#4CAF50", fg="white", font=("Arial", 12)).pack(pady=10)

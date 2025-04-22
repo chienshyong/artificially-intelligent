@@ -25,7 +25,7 @@ This repository contains all notebooks, scripts, and data used for training, eva
 | File | Purpose |
 |------|---------|
 | `cleaning_data.ipynb` | Notebook for preprocessing raw tweet data. Outputs `cleaned_cyberbullying.csv`. |
-| `data-visualization.ipynb` | Generates plots used in the report and trains the ELECTRA model. |
+| `data-visualization + ELECTRA.ipynb` | Generates plots used in the report and trains the ELECTRA model. |
 | `deberta.ipynb` | Fine-tunes the DeBERTa model for multi-class classification of cyberbullying types. |
 | `electra/` | Folder containing ELECTRA model configuration and outputs. |
 | `randomForest.ipynb` | Extracts linguistic, sentiment, and syntactic features for training a Random Forest model. |
@@ -52,6 +52,9 @@ This repository contains all notebooks, scripts, and data used for training, eva
 | `requirements.txt` | Python dependencies needed to run the project. |
 | `.gitignore` | Git ignore rules for the project. |
 | `README.md` | You’re reading it! |
+| `demo.mkv` | Video demonstration of the GUI. |
+| `50.021 AI Final Presentation.pdf` | Final Presentation slides. |
+| `50.021 AI Project Final Report.pdf` | Final Report document. |
 
 ---
 
@@ -59,7 +62,8 @@ This repository contains all notebooks, scripts, and data used for training, eva
 
 - **DeBERTa**: For deep semantic classification  
 - **ELECTRA**: Lightweight transformer model fine-tuned on the dataset  
+- **RoBERTa**: Strong performance on ambiguous and nuanced language cases  
 - **Random Forest**: Trained on handcrafted features for interpretability  
-- **Stacking**: A logistic regression meta-model trained on outputs from all three base models
+- **Stacking**: A logistic regression meta-model trained on outputs from DeBERTa, ELECTRA, and Random Forest  
 
 ---
