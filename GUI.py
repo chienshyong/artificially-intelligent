@@ -30,10 +30,14 @@ label_mapping = dict(zip(label_encoder.classes_, label_encoder.transform(label_e
 tokenizer_deberta = AutoTokenizer.from_pretrained("deberta")
 model_deberta = AutoModelForSequenceClassification.from_pretrained("deberta")
 deberta_label_encoder = joblib.load("deberta/label_encoder.pkl")
+
 tokenizer_electra = AutoTokenizer.from_pretrained("electra")
 model_electra = AutoModelForSequenceClassification.from_pretrained("electra")
+
 rf_model = joblib.load("randomForest/rf_model.pkl")
 rf_label_encoder = joblib.load("randomForest/rf_label_encoder.pkl")
+
+meta_model = joblib.load("stacking/meta_model.pkl")
 
 nlp = spacy.load("en_core_web_sm")
 vader = SentimentIntensityAnalyzer()
@@ -96,6 +100,19 @@ def extract_features(text):
         "adj_count": adj_count,
         "adv_count": adv_count,
     }
+    
+def get_transformer_probs(text, tokenizer, model):
+    inputs = tokenizer(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
+    inputs = {k: v for k, v in inputs.items()}
+    with torch.no_grad():
+        outputs = model(**inputs)
+        probs = torch.softmax(outputs.logits, dim=1).cpu().numpy()[0]
+    return probs
+
+def get_rf_probs(text):
+    features = pd.DataFrame([extract_features(text)]).fillna(0)
+    probs = rf_model.predict_proba(features)[0]
+    return probs
 
 def predict_text():
     text = input_box.get("1.0", tk.END).strip()
@@ -112,7 +129,7 @@ def predict_text():
             pred = torch.argmax(outputs.logits, dim=1).item()
             label = deberta_label_encoder.inverse_transform([pred])[0]
             
-        if model_choice == "ELECTRA":
+        elif model_choice == "ELECTRA":
             inputs = tokenizer_electra(text, return_tensors="pt", truncation=True, padding=True, max_length=128)
             outputs = model_electra(**inputs)
             logits = outputs.logits
@@ -124,6 +141,15 @@ def predict_text():
             new_row.fillna(0, inplace=True)  # in case any features are missing
             # Predict
             label = rf_label_encoder.inverse_transform(rf_model.predict(new_row))[0]
+            
+        elif model_choice == "Stacking":
+            deberta_probs = get_transformer_probs(text, tokenizer_deberta, model_deberta)
+            electra_probs = get_transformer_probs(text, tokenizer_electra, model_electra)
+            rf_probs = get_rf_probs(text)
+
+            meta_input = np.hstack([deberta_probs, electra_probs, rf_probs]).reshape(1, -1)
+            final_pred = meta_model.predict(meta_input)[0]
+            label = rf_label_encoder.inverse_transform([final_pred])[0]
 
         else:
             messagebox.showerror("Invalid Selection", "Please select a model.")
@@ -145,7 +171,7 @@ input_box.pack(pady=5)
 
 tk.Label(root, text="Choose Model:", font=("Arial", 12)).pack(pady=5)
 model_var = tk.StringVar(value="DeBERTa")
-model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "Random Forest", "ELECTRA"], state="readonly")
+model_dropdown = ttk.Combobox(root, textvariable=model_var, values=["DeBERTa", "Random Forest", "ELECTRA", "Stacking"], state="readonly")
 model_dropdown.pack()
 
 tk.Button(root, text="Predict", command=predict_text, bg="#4CAF50", fg="white", font=("Arial", 12)).pack(pady=10)
