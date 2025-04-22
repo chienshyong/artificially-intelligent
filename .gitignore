@@ -172,3 +172,5 @@ cython_debug/
 
 # PyPI configuration file
 .pypirc
+weights_epoch_2.pth
+/roberta_cyberbullying_epoch_2
